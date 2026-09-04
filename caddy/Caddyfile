@@ -1,0 +1,19 @@
+{
+	email {$ACME_EMAIL}
+}
+
+(basicauth) {
+	basicauth {
+		{$AUTH_USER} {$AUTH_PASSWORD_HASH}
+	}
+}
+
+checklist.pisiketeenus.eu {
+	import basicauth
+	reverse_proxy gochecklist:8081
+}
+
+weather.pisiketeenus.eu {
+	import basicauth
+	reverse_proxy goweather:7001
+}

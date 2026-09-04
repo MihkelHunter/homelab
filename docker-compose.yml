@@ -1,0 +1,39 @@
+services:
+  caddy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+
+  gochecklist:
+    build: ./gochecklist
+    restart: unless-stopped
+    volumes:
+      - gochecklist_data:/app/data
+    networks:
+      - edge
+
+  goweather:
+    build: ./goweather
+    restart: unless-stopped
+    volumes:
+      - goweather_data:/app/data
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  gochecklist_data:
+  goweather_data:
+
+networks:
+  edge:

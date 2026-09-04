@@ -1,0 +1,18 @@
+# Secrets
+.env
+
+# SQLite data
+*.db
+*.db-journal
+
+# WhatsApp session data
+whatsapp-session/
+
+# Editor/IDE
+.idea/
+.vscode/
+
+# App sources are tracked in their own repos and cloned by setup.sh;
+# only the composition files live in this repo.
+/gochecklist/
+/goweather/
