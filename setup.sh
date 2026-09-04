@@ -13,7 +13,7 @@ ACME_EMAIL="${ACME_EMAIL:-}"
 # Shared family login used by Caddy basicauth on both apps
 AUTH_USER="${AUTH_USER:-family}"
 # Git repo URLs (must be public or reachable without credentials)
-COMPOSE_REPO="${COMPOSE_REPO:-}"            # repo holding docker-compose.yml, caddy/, deploy.sh
+COMPOSE_REPO="${COMPOSE_REPO:-https://github.com/MihkelHunter/homelab.git}"  # repo holding docker-compose.yml, caddy/, deploy.sh
 GOCHECKLIST_REPO="${GOCHECKLIST_REPO:-https://github.com/MihkelHunter/gochecklist.git}"
 GOWEATHER_REPO="${GOWEATHER_REPO:-https://github.com/MihkelHunter/goweather.git}"
 # Where the stack lives on the server
