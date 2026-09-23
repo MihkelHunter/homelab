@@ -1,0 +1,21 @@
+{
+	auto_https disable_redirects
+}
+
+(basicauth) {
+	basicauth {
+		{$AUTH_USER} {$AUTH_PASSWORD_HASH}
+	}
+}
+
+checklist.localhost {
+	tls internal
+	import basicauth
+	reverse_proxy gochecklist:8081
+}
+
+weather.localhost {
+	tls internal
+	import basicauth
+	reverse_proxy goweather:7001
+}

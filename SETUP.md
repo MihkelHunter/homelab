@@ -13,7 +13,77 @@ Internet → Caddy (80/443 only)
                  └── goweather   (:7001)
 ```
 
-## Prerequisites
+## Local testing (run on your machine)
+
+You can run the whole stack locally before (or instead of) deploying to a VPS.
+The two apps build from the `gochecklist/` and `goweather/` directories in this
+repo; only the Caddy config changes for local use.
+
+### Files
+
+| Path | Purpose |
+|------|---------|
+| `caddy/Caddyfile.local` | Local reverse proxy: `*.localhost` sites, internal TLS, no Let's Encrypt |
+| `docker-compose.local.yml` | Compose overlay: mounts `Caddyfile.local`, injects `.env` into Caddy, remaps ports |
+| `.env` (gitignored) | Same shape as `.env.example`; see below |
+
+### Steps
+
+1. Copy `.env.example` to `.env`:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env`:
+
+   ```bash
+   AUTH_USER=family                          # shared login username
+   AUTH_PASSWORD_HASH=$2a$14$...             # hash for your local password
+   ACME_EMAIL=you@example.com                # unused locally (internal TLS)
+   ```
+
+   Generate the hash with:
+   ```bash
+   docker run --rm caddy:2.9-alpine caddy hash-password
+   ```
+   > Docker Compose interpolates `$` in `.env`, so if the hash contains `$`
+   > (it always does, e.g. `$2a$14$EXP...`), write it as `$$2a$$14$$EXP...`
+   > and Compose will convert it back to a single `$` in the container.
+
+3. Start the stack:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+   ```
+
+4. Open the apps (login with `AUTH_USER` / your password):
+
+   - `https://checklist.localhost:8443`
+   - `https://weather.localhost:8443`
+
+### Notes
+
+- Ports bound: HTTP on **80/8080**, HTTPS on **443/8443** (both sets work;
+  edit `ports` in `docker-compose.local.yml` if 80/443 are taken).
+- Local Caddy uses its **internal CA** (`tls internal`), so no Let's Encrypt or
+  ACME email is needed; `auto_https disable_redirects` turns off the
+  HTTP→HTTPS redirect so the non-standard ports work.
+- Browsers will warn about the self-signed internal cert on first visit —
+  accept it once, or trust Caddy's local CA stored in the `caddy_data` volume.
+- `*.localhost` resolves to `127.0.0.1` in modern browsers, so no `/etc/hosts`
+  edits are needed.
+- App data persists in the same named volumes (`gochecklist_data`,
+  `goweather_data`) as on the server.
+- Stop with `docker compose -f docker-compose.yml -f docker-compose.local.yml down`.
+- The `Caddyfile.local` / overlay never touch the production `Caddyfile`, so
+  deploy-to-server flow below is unaffected.
+
+---
+
+## Server deployment (Hetzner VPS)
+
+### Prerequisites
 
 - A **Hetzner Cloud account** at console.hetzner.com
 - The domain **pisiketeenus.eu** (DNS can be managed in Hetzner's console)
@@ -83,6 +153,9 @@ AUTH_PASSWORD_HASH=$2a$14$...           # paste the hash from setup.sh, or gener
 #   docker run --rm caddy:2.9-alpine caddy hash-password
 ```
 
+> If you add `env_file: [.env]` to the caddy service (see Troubleshooting),
+> escape `$` as `$$` in this file the same way as in the local setup above.
+
 ## 6. Deploy
 
 ```bash
@@ -133,4 +206,9 @@ cd /opt/homelab && sudo ./deploy.sh
 
 - **Certificate not issued / redirect loop** → DNS not propagated or port 80 blocked. Verify `dig checklist.pisiketeenus.eu`, and that 80 is open.
 - **401 after login** → wrong `AUTH_PASSWORD_HASH`; regenerate and redeploy.
+- **Always 401 (even with wrong password attempt) / no ACME email** → Caddy can't
+  read `.env`. The `caddy` service in `docker-compose.yml` must receive the vars
+  from `.env` (add `env_file: [.env]` to the caddy service) — otherwise
+  `{$AUTH_USER}`, `{$AUTH_PASSWORD_HASH}` and `{$ACME_EMAIL}` are empty. Verify
+  with `docker compose exec caddy env`.
 - **Changes not showing** → run `./deploy.sh` (rebuilds the images from latest git).

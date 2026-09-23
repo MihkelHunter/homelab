@@ -1,0 +1,10 @@
+services:
+  caddy:
+    env_file:
+      - .env
+    volumes:
+      - ./caddy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+    ports:
+      - "8080:80"
+      - "8443:443"
+      - "8443:443/udp"
