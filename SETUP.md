@@ -2,10 +2,12 @@
 
 Hosts two family apps behind a single shared login on a cheap Hetzner Cloud VPS:
 
-- **gochecklist** → `https://checklist.pisiketeenus.eu`
-- **goweather** → `https://weather.pisiketeenus.eu`
-
-Stack: Hetzner Cloud CX22 · Docker Compose · Caddy (reverse proxy + Let's Encrypt HTTPS + basicauth).
+- **gochecklist** -> `https://checklist.pisiketeenus.eu`
+- **goweather** -> `https://weather.pisiketeenus.eu`
+- gocalories -> `https://calories.pisiketeenus.eu`
+Stack: Hetzner Cloud CX22
+· Docker Compose
+· Caddy (reverse proxy + Let's Encrypt HTTPS + basicauth).
 
 ```
 Internet → Caddy (80/443 only)
@@ -22,7 +24,7 @@ repo; only the Caddy config changes for local use.
 ### Files
 
 | Path | Purpose |
-|------|---------|
+| ------ | --------- |
 | `caddy/Caddyfile.local` | Local reverse proxy: `*.localhost` sites, internal TLS, no Let's Encrypt |
 | `docker-compose.local.yml` | Compose overlay: mounts `Caddyfile.local`, injects `.env` into Caddy, remaps ports |
 | `.env` (gitignored) | Same shape as `.env.example`; see below |
@@ -44,9 +46,11 @@ repo; only the Caddy config changes for local use.
    ```
 
    Generate the hash with:
+
    ```bash
    docker run --rm caddy:2.9-alpine caddy hash-password
    ```
+
    > Docker Compose interpolates `$` in `.env`, so if the hash contains `$`
    > (it always does, e.g. `$2a$14$EXP...`), write it as `$$2a$$14$$EXP...`
    > and Compose will convert it back to a single `$` in the container.
@@ -87,14 +91,16 @@ repo; only the Caddy config changes for local use.
 
 - A **Hetzner Cloud account** at console.hetzner.com
 - The domain **pisiketeenus.eu** (DNS can be managed in Hetzner's console)
-- You have already scaffolded the files in this repo (docker-compose.yml, caddy/, deploy.sh, setup.sh, .env.example)
+- You have already scaffolded the files in this repo
+(docker-compose.yml, caddy/, deploy.sh, setup.sh, .env.example)
 
 ## 1. Create the VPS
 
 1. Sign in at **console.hetzner.com** → Projects → New Project.
 2. **Add Server**:
    - Location: closest to your users (EU: Nuremberg/Falkenstein/Helsinki, US: Ashburn/Hillsboro)
-   - Image: **Ubuntu 24.04** (or the one-click **Docker CE** app if you prefer Docker preinstalled)
+   - Image: **Ubuntu 24.04**
+   (or the one-click **Docker CE** app if you prefer Docker preinstalled)
    - Type: **CX22** (2 vCPU, 4 GB RAM, 40 GB NVMe) — ~€4.50/month
    - Add an **SSH key** (or use the emailed root password)
    - Backup: optional (snapshots are handy before big changes)
@@ -102,7 +108,8 @@ repo; only the Caddy config changes for local use.
 
 ## 2. DNS
 
-In Hetzner Console → your **domain zone** (`pisiketeenus.eu`), add these records pointing at the server IP:
+In Hetzner Console → your **domain zone** (`pisiketeenus.eu`),
+add these records pointing at the server IP:
 
 | Type | Name | Value |
 |------|------|-------|
@@ -137,9 +144,13 @@ sudo bash -c '
 > folder up to `/opt/homelab` instead of the `git clone` above.
 
 `setup.sh` will:
+
 - Install Docker Engine + Compose plugin + git
+
 - Clone the two app repos (`gochecklist`, `goweather`) into `/opt/homelab/`
+
 - Create `.env` from `.env.example`
+
 - Generate a **basicauth password hash** for the shared family login
 
 ## 5. Configure `.env`
@@ -181,10 +192,10 @@ Then open the two URLs — you'll be asked for the shared `AUTH_USER` / password
 cd /opt/homelab && sudo ./deploy.sh
 ```
 
-## Files
+## Deploy Files
 
 | Path | Purpose |
-|------|---------|
+| ------ | --------- |
 | `docker-compose.yml` | Caddy + both apps; only Caddy exposes ports |
 | `caddy/Caddyfile` | Reverse proxy, basicauth, auto-HTTPS |
 | `.env` / `.env.example` | Secrets & ACME email (**never commit `.env`**) |
@@ -196,7 +207,7 @@ cd /opt/homelab && sudo ./deploy.sh
 ## Cost
 
 | Item | ~Monthly |
-|------|----------|
+| ------ | ---------- |
 | Hetzner CX22 | €4.50 |
 | Domain (annual) | ~€1 |
 | TLS certs (Let's Encrypt) | €0 |
@@ -204,7 +215,8 @@ cd /opt/homelab && sudo ./deploy.sh
 
 ## Troubleshooting
 
-- **Certificate not issued / redirect loop** → DNS not propagated or port 80 blocked. Verify `dig checklist.pisiketeenus.eu`, and that 80 is open.
+- **Certificate not issued / redirect loop** → DNS not propagated or port 80 blocked.
+Verify `dig checklist.pisiketeenus.eu`, and that 80 is open.
 - **401 after login** → wrong `AUTH_PASSWORD_HASH`; regenerate and redeploy.
 - **Always 401 (even with wrong password attempt) / no ACME email** → Caddy can't
   read `.env`. The `caddy` service in `docker-compose.yml` must receive the vars
