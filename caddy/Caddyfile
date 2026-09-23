@@ -17,3 +17,8 @@ weather.pisiketeenus.eu {
 	import basicauth
 	reverse_proxy goweather:7001
 }
+
+calories.pisiketeenus.eu {
+	import basicauth
+	reverse_proxy gocalories:8082
+}

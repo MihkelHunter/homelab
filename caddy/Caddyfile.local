@@ -19,3 +19,9 @@ weather.localhost {
 	import basicauth
 	reverse_proxy goweather:7001
 }
+
+calories.localhost {
+	tls internal
+	import basicauth
+	reverse_proxy gocalories:8082
+}

@@ -29,11 +29,20 @@ services:
     networks:
       - edge
 
+  gocalories:
+    build: ./gocalories
+    restart: unless-stopped
+    volumes:
+      - gocalories_data:/app/data
+    networks:
+      - edge
+
 volumes:
   caddy_data:
   caddy_config:
   gochecklist_data:
   goweather_data:
+  gocalories_data:
 
 networks:
   edge:
