@@ -13,9 +13,19 @@ services:
     networks:
       - edge
 
+  messaging:
+    build: ./messaging
+    restart: unless-stopped
+    volumes:
+      - messaging_data:/app/data
+    networks:
+      - edge
+
   gochecklist:
     build: ./gochecklist
     restart: unless-stopped
+    environment:
+      - MESSAGING_SERVICE_URL=http://messaging:7000
     volumes:
       - gochecklist_data:/app/data
     networks:
@@ -24,6 +34,8 @@ services:
   goweather:
     build: ./goweather
     restart: unless-stopped
+    environment:
+      - MESSAGING_SERVICE_URL=http://messaging:7000
     volumes:
       - goweather_data:/app/data
     networks:
@@ -43,6 +55,7 @@ volumes:
   gochecklist_data:
   goweather_data:
   gocalories_data:
+  messaging_data:
 
 networks:
   edge:

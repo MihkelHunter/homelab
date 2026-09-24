@@ -25,3 +25,9 @@ calories.localhost {
 	import basicauth
 	reverse_proxy gocalories:8082
 }
+
+notify.localhost {
+	tls internal
+	import basicauth
+	reverse_proxy messaging:7000
+}

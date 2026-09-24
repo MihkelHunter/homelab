@@ -22,3 +22,8 @@ calories.pisiketeenus.eu {
 	import basicauth
 	reverse_proxy gocalories:8082
 }
+
+notify.pisiketeenus.eu {
+	import basicauth
+	reverse_proxy messaging:7000
+}

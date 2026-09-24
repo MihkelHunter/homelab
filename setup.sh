@@ -16,6 +16,7 @@ AUTH_USER="${AUTH_USER:-family}"
 COMPOSE_REPO="${COMPOSE_REPO:-https://github.com/MihkelHunter/homelab.git}"  # repo holding docker-compose.yml, caddy/, deploy.sh
 GOCHECKLIST_REPO="${GOCHECKLIST_REPO:-https://github.com/MihkelHunter/gochecklist.git}"
 GOWEATHER_REPO="${GOWEATHER_REPO:-https://github.com/MihkelHunter/goweather.git}"
+MESSAGING_REPO="${MESSAGING_REPO:-https://github.com/MihkelHunter/messaging.git}"
 # Where the stack lives on the server
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/homelab}"
 # User that will own the folder and run docker (defaults to the sudo caller)
@@ -66,6 +67,7 @@ cd "$DEPLOY_DIR"
 log "Cloning app repos into $DEPLOY_DIR..."
 [ -d gochecklist/.git ] || git clone "$GOCHECKLIST_REPO" gochecklist
 [ -d goweather/.git ]   || git clone "$GOWEATHER_REPO"   goweather
+[ -d messaging/.git ]   || git clone "$MESSAGING_REPO"   messaging
 
 if [ -n "$COMPOSE_REPO" ] && [ ! -f docker-compose.yml ]; then
   log "Cloning composition repo into $DEPLOY_DIR..."
@@ -112,6 +114,7 @@ cat <<EOF
           pisiketeenus.eu             -> <server-ip>
           checklist.pisiketeenus.eu   -> <server-ip>
           weather.pisiketeenus.eu     -> <server-ip>
+          notify.pisiketeenus.eu      -> <server-ip>
    3) Open ports in the Hetzner firewall:  80/tcp  443/tcp  443/udp
    4) Run:   cd $DEPLOY_DIR && sudo ./deploy.sh
 ============================================================
