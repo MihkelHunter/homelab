@@ -16,7 +16,7 @@ AUTH_USER="${AUTH_USER:-family}"
 COMPOSE_REPO="${COMPOSE_REPO:-https://github.com/MihkelHunter/homelab.git}"  # repo holding docker-compose.yml, caddy/, deploy.sh
 GOCHECKLIST_REPO="${GOCHECKLIST_REPO:-https://github.com/MihkelHunter/gochecklist.git}"
 GOWEATHER_REPO="${GOWEATHER_REPO:-https://github.com/MihkelHunter/goweather.git}"
-MESSAGING_REPO="${MESSAGING_REPO:-https://github.com/MihkelHunter/messaging.git}"
+MESSAGING_REPO="${MESSAGING_REPO:-https://github.com/MihkelHunter/gomessaging.git}"
 # Where the stack lives on the server
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/homelab}"
 # User that will own the folder and run docker (defaults to the sudo caller)
