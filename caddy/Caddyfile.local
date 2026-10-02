@@ -31,3 +31,32 @@ notify.localhost {
 	import basicauth
 	reverse_proxy messaging:7000
 }
+
+# Tailscale Serve (see docker-compose.tailscale.yml) terminates TLS with a real
+# certificate for <TS_HOSTNAME>.<tailnet>.ts.net and forwards plain HTTP to
+# 127.0.0.1 inside Caddy's own network namespace. The request it delivers carries
+# Host: <TS_HOSTNAME>.<tailnet>.ts.net, so these sites must match on port only —
+# a host-qualified address like http://127.0.0.1:9080 would never match and Caddy
+# answers with an empty 200 instead of the app.
+#
+# These are inert unless the `tailscale` compose profile is active: the ports are
+# not published on the host, so nothing outside the compose network can reach them.
+:9080 {
+	import basicauth
+	reverse_proxy gochecklist:8081
+}
+
+:9081 {
+	import basicauth
+	reverse_proxy goweather:7001
+}
+
+:9082 {
+	import basicauth
+	reverse_proxy gocalories:8082
+}
+
+:9083 {
+	import basicauth
+	reverse_proxy messaging:7000
+}

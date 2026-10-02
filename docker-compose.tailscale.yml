@@ -1,0 +1,47 @@
+# Tailscale-only overlay for local hosting. Always layer it on top of
+# docker-compose.local.yml — never on top of the bare production stack.
+#
+# The feature flag is the `tailscale` compose PROFILE, not an env var:
+#
+#   ON:   docker compose -f docker-compose.yml -f docker-compose.local.yml \
+#         -f docker-compose.tailscale.yml --profile tailscale up --build
+#   OFF:  docker compose -f docker-compose.yml -f docker-compose.local.yml \
+#         up --build
+#
+# With the profile off, Compose creates no container, no volume and reads no
+# config file from this overlay, so reverting is just dropping the flag.
+#
+# Nothing here changes the caddy service or its host-published 8080/8443 ports:
+# the only Caddy-side requirement is the loopback sites already present in
+# caddy/Caddyfile.local (9080-9083).
+services:
+  tailscale:
+    image: ghcr.io/tailscale/tailscale:stable
+    profiles:
+      - tailscale
+    restart: unless-stopped
+    # `tailscale serve` can only proxy to http://127.0.0.1, so it has to share
+    # Caddy's network namespace to reach Caddy's loopback listener.
+    network_mode: "service:caddy"
+    depends_on:
+      - caddy
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY:?set TAILSCALE_AUTHKEY in .env (see .env.example)}
+      - TS_HOSTNAME=${TS_HOSTNAME:-homelab}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_SERVE_CONFIG=/config/ts-serve.json
+      # tailscaled shares Caddy's network namespace, so it must not take over
+      # DNS there: Caddy resolves gochecklist/goweather/gocalories/messaging via
+      # Docker's embedded resolver on 127.0.0.11.
+      - TS_EXTRA_ARGS=--accept-dns=false
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+      - ./tailscale:/config
+    cap_add:
+      - net_admin
+      - sys_module
+    devices:
+      - /dev/net/tun:/dev/net/tun
+
+volumes:
+  tailscale_state:

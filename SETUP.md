@@ -25,8 +25,12 @@ repo; only the Caddy config changes for local use.
 
 | Path | Purpose |
 | ------ | --------- |
-| `caddy/Caddyfile.local` | Local reverse proxy: `*.localhost` sites, internal TLS, no Let's Encrypt |
+| `caddy/Caddyfile.local` | Local reverse proxy: `*.localhost` sites + port-only sites for Tailscale |
 | `docker-compose.local.yml` | Compose overlay: mounts `Caddyfile.local`, injects `.env` into Caddy, remaps ports |
+| `run-local.sh` / `run-local.ps1` | Start the local stack (no Tailscale) |
+| `docker-compose.tailscale.yml` | Optional overlay (profile `tailscale`): Tailscale sidecar on your tailnet |
+| `run-tailscale.sh` / `run-tailscale.ps1` | Start the local stack with Tailscale enabled |
+| `tailscale/ts-serve.json` | `tailscale serve` config: 4 tailnet ports → 4 Caddy ports |
 | `.env` (gitignored) | Same shape as `.env.example`; see below |
 
 ### Steps
@@ -58,7 +62,13 @@ repo; only the Caddy config changes for local use.
 3. Start the stack:
 
    ```bash
-   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+   ./run-local.sh              # or: .\run-local.ps1
+   ```
+
+   That is just a wrapper for:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build --remove-orphans
    ```
 
 4. Open the apps (login with `AUTH_USER` / your password):
@@ -82,6 +92,125 @@ repo; only the Caddy config changes for local use.
 - Stop with `docker compose -f docker-compose.yml -f docker-compose.local.yml down`.
 - The `Caddyfile.local` / overlay never touch the production `Caddyfile`, so
   deploy-to-server flow below is unaffected.
+
+---
+
+## Tailscale (local hosting only)
+
+Optionally publish the local stack on your **tailnet** instead of on the public
+internet — useful for testing from your phone, or for a family VPS-less setup.
+Nothing is exposed outside the tailnet and no ports change on your machine.
+
+**The feature flag is the Compose profile `tailscale`** (not an env var, not a
+file rename), so switching it off restores the previous state exactly:
+
+```bash
+# ON  — or just: ./run-tailscale.sh   (or: .\run-tailscale.ps1)
+docker compose -f docker-compose.yml -f docker-compose.local.yml \
+  -f docker-compose.tailscale.yml --profile tailscale up --build
+
+# OFF — or just: ./run-local.sh       (or: .\run-local.ps1)
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+
+# OFF + drop the tailnet node from your account entirely
+docker compose -f docker-compose.yml -f docker-compose.local.yml \
+  -f docker-compose.tailscale.yml --profile tailscale \
+  down --volumes --remove-orphans
+```
+
+The `:908x` sites at the bottom of `caddy/Caddyfile.local` are the only
+permanent change and they are inert while the profile is off: the ports are not
+published on the host, so nothing outside the compose network can reach them.
+
+### Files
+
+| Path | Purpose |
+| ------ | --------- |
+| `docker-compose.tailscale.yml` | Adds the `tailscale` service (profile `tailscale`) sharing Caddy's netns |
+| `run-tailscale.sh` / `run-tailscale.ps1` | Starts the stack with the profile on; checks `TAILSCALE_AUTHKEY` first |
+| `tailscale/ts-serve.json` | Serve config: tailnet HTTPS ports → Caddy ports |
+| `caddy/Caddyfile.local` | Last 4 blocks: port-only sites on 9080-9083 for Tailscale Serve |
+
+### Setup
+
+1. Create a Tailscale auth key at
+   <https://login.tailscale.com/admin/settings/keys> and add it to `.env`:
+
+   ```bash
+   TAILSCALE_AUTHKEY=tskey-auth-xxxxxxxxxxxxxxxx?ephemeral=true
+   TS_HOSTNAME=homelab            # -> https://homelab.<tailnet>.ts.net
+   ```
+
+   `?ephemeral=true` makes the node drop out of your other devices' lists when
+   the stack is down. HTTPS must be enabled for the tailnet so Serve can issue
+   the certificate.
+
+2. Start with `./run-tailscale.sh` (or `.\run-tailscale.ps1`), then confirm:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml \
+  -f docker-compose.tailscale.yml --profile tailscale \
+  exec tailscale tailscale serve status
+```
+
+### URLs
+
+`tailscale serve` terminates TLS with a real, publicly-trusted certificate for
+the node's `ts.net` name, then proxies plain HTTP to Caddy on loopback. Tailscale
+only issues certs for `<node>.<tailnet>.ts.net` — never for subdomains of it — so
+each app gets its own port instead of its own hostname:
+
+| App | URL |
+| --- | --- |
+| gochecklist | `https://homelab.<tailnet>.ts.net/` |
+| goweather | `https://homelab.<tailnet>.ts.net:8443` |
+| gocalories | `https://homelab.<tailnet>.ts.net:9443` |
+| messaging (WhatsApp) | `https://homelab.<tailnet>.ts.net:10443` |
+
+Basicauth still applies, so keep using `AUTH_USER` + your password. The
+`*.localhost:8443` URLs keep working at the same time — the two share Caddy.
+
+### Can you run `tailscale serve` from inside the container?
+
+Yes, the CLI is in the image. `serve` can only proxy to `http://127.0.0.1`, which
+is why the sidecar uses `network_mode: service:caddy` — it lives in Caddy's
+network namespace, so `127.0.0.1:9080` is Caddy's loopback listener:
+
+```bash
+TS="docker compose -f docker-compose.yml -f docker-compose.local.yml \
+  -f docker-compose.tailscale.yml --profile tailscale"
+
+# inspect what is served
+$TS exec tailscale tailscale serve status
+
+# add an endpoint at runtime (not persisted — see below)
+$TS exec tailscale tailscale serve --https=11443 http://127.0.0.1:9082
+
+# tear down all serve config (leaves the node on your tailnet)
+$TS exec tailscale tailscale serve reset
+```
+
+Runtime changes are lost on container restart, because `TS_SERVE_CONFIG` points
+at `tailscale/ts-serve.json`. To make an endpoint stick, run the same command
+with `serve set-config` or just edit that file — the `${TS_CERT_DOMAIN}`
+placeholder is substituted by `tailscaled` at load time, so you never hardcode
+the tailnet name.
+
+### Notes
+
+- `TS_EXTRA_ARGS=--accept-dns=false` is required: the sidecar shares Caddy's
+  network namespace, and letting `tailscaled` manage DNS there would break
+  Caddy's resolution of the `gochecklist` / `goweather` service names.
+- `cap_add: net_admin` + `/dev/net/tun` are for the kernel WireGuard engine. If
+  your Docker host cannot provide `/dev/net/tun`, set `TS_USERSPACE=true` in the
+  sidecar's environment (Serve still works in userspace mode).
+- Node state lives in the `tailscale_state` volume, so restarts don't re-auth.
+- The sidecar has no `networks:` key of its own — it is reachable only through
+  Caddy's namespace, never from the `edge` network.
+- **After `docker compose restart caddy`, restart the sidecar too.** It shares
+  Caddy's network namespace, so it can come back up with a namespace that has no
+  working interface (`magicsock: network down`, all URLs time out). Or just run
+  `docker compose ... up -d`, which recreates both in the right order.
 
 ---
 
